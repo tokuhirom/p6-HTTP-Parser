@@ -24,4 +24,10 @@ is $env<PATH_INFO>, "/";
     is $result, -1;
 }
 
+# illegal
+{
+    my ($result, $env) = parse-http-request("mattn\r\n\r\n".encode('ascii'));
+    is $result, -2;
+}
+
 done-testing;
