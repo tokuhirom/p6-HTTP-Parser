@@ -29,12 +29,10 @@ sub parse-http-request(Blob $req) is export {
             $env<SERVER_PROTOCOL> = "HTTP/1.{$/[2].Str}";
             my $path_query = $/[1];
             if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
-                $env<PATH_INFO> = $/[0].Str;
-                if $/[1].defined {
-                    $env<QUERY_STRING> = $/[1].Str;
-                } else {
-                    $env<QUERY_STRING> = '';
-                }
+                my $path = $/[0].Str;
+                my $query = ($/[1] // '').Str;
+                $env<PATH_INFO> = $path;
+                $env<QUERY_STRING> = $query;
             }
         } else {
             return -2,Nil;

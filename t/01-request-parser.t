@@ -20,6 +20,15 @@ is $env<SERVER_PROTOCOL>, "HTTP/1.0";
     is $env<CONTENT_TYPE>, "text/html";
 }
 
+# query
+{
+    my ($result, $env) = parse-http-request("GET /foo?bar=3 HTTP/1.1\r\n\r\n".encode('ascii'));
+    is $result, 27;
+    is $env<REQUEST_METHOD>, "GET";
+    is $env<PATH_INFO>, "/foo";
+    is $env<QUERY_STRING>, "bar=3";
+}
+
 # incomplete
 {
     my ($result, $env) = parse-http-request("GET / HTTP/1.0\r\n".encode('ascii'));
