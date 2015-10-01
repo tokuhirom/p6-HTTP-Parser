@@ -1,9 +1,9 @@
 {
   "name" : "HTTP::Parser",
-  "source-url" : "",
+  "source-url" : "git://github.com/tokuhirom/p6-HTTP-Parser.git",
   "perl" : "v6",
   "provides" : {
-    "HTTP::Parser" : "lib/HTTP/Request/Parser.pm6"
+    "HTTP::Parser" : "lib/HTTP/Parser.pm6"
   },
   "depends" : [ ],
   "description" : "",
