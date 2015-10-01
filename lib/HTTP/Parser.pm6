@@ -26,6 +26,7 @@ sub parse-http-request(Blob $req) is export {
         my Str $status_line = @header_lines.shift;
         if $status_line ~~ m/^(<[A..Z]>+)\s(\S+)\sHTTP\/1\.(<[01]>)$/ {
             $env<REQUEST_METHOD> = $/[0].Str;
+            $env<SERVER_PROTOCOL> = "HTTP/1.{$/[2].Str}";
             my $path_query = $/[1];
             if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
                 $env<PATH_INFO> = $/[0].Str;
