@@ -19,15 +19,18 @@ sub parse-http-request(Blob $req) is export {
     if ($header_end_pos < $req.bytes) {
         my @header_lines = $req.subbuf(
             0, $header_end_pos
-        ).decode('ascii').split(/\r\n/);
+        ).decode('ascii').subst(/^(\r\n)*/, '').split(/\r\n/);
 
-        my $env = { };
+        my $env = {
+            :SCRIPT_NAME('')
+        };
 
         my Str $status_line = @header_lines.shift;
         if $status_line ~~ m/^(<[A..Z]>+)\s(\S+)\sHTTP\/1\.(<[01]>)$/ {
             $env<REQUEST_METHOD> = $/[0].Str;
             $env<SERVER_PROTOCOL> = "HTTP/1.{$/[2].Str}";
-            my $path_query = $/[1];
+            my $path_query = $/[1].Str;
+            $env<REQUEST_URI> = $path_query;
             if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
                 my $path = $/[0].Str;
                 my $query = ($/[1] // '').Str;
