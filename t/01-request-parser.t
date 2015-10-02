@@ -58,6 +58,9 @@ my @cases =
     ["GET / HTTP/1.0\r\n", [
         -1, Nil
     ]],
+    ["GET / HTTP/1.0\r\nhogehoge\r\n\r\n", [
+        -2, Nil
+    ]],
     ["mattn\r\n\r\n", [
         -2, Nil
     ]],

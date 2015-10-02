@@ -53,7 +53,7 @@ sub parse-http-request(Blob $req) is export {
                 }
                 $env{$k} = $v.Str;
             } else {
-                die "invalid header: $_";
+                return -2,Nil;
             }
         }
 
