@@ -31,7 +31,9 @@ sub parse-http-request(Blob $req) is export {
             if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
                 my $path = $/[0].Str;
                 my $query = ($/[1] // '').Str;
-                $env<PATH_INFO> = $path;
+                $env<PATH_INFO> = $path.subst(:g, /\%(<[0..9 a..f A..F]> ** 2)/, -> {
+                     :16($/[0].Str).chr
+                });
                 $env<QUERY_STRING> = $query;
             }
         } else {

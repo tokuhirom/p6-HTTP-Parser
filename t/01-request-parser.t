@@ -29,6 +29,21 @@ is $env<SERVER_PROTOCOL>, "HTTP/1.0";
     is $env<QUERY_STRING>, "bar=3";
 }
 
+my @cases = (
+    ("GET /foo%2A%2c?bar=3 HTTP/1.1\r\n\r\n", [
+        33, {
+            REQUEST_METHOD => 'GET',
+            PATH_INFO => '/foo*,',
+            QUERY_STRING => 'bar=3',
+            SERVER_PROTOCOL => 'HTTP/1.1',
+        }
+    ])
+);
+
+for @cases -> $req, $expected {
+    is-deeply [parse-http-request($req.encode('ascii'))], $expected, $req.subst(/\r/, '\\r', :g).subst(/\n/, '\\n', :g);
+}
+
 # incomplete
 {
     my ($result, $env) = parse-http-request("GET / HTTP/1.0\r\n".encode('ascii'));
