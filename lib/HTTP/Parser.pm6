@@ -2,66 +2,66 @@ use v6;
 
 unit module HTTP::Parser;
 
-my Buf $http_header_end_marker = Buf.new(13, 10, 13, 10);
-
 # >0: header size
 # -1: failed
 # -2: request is partial
-sub parse-http-request(Blob $req) is export {
-    my Int $header_end_pos = 0;
-    while ( $header_end_pos < $req.bytes ) {
-        if ($http_header_end_marker eq $req.subbuf($header_end_pos, 4)) {
-            last;
+my sub parse-header(Blob $req, int $header_end_pos) {
+    my @header_lines = $req.subbuf(
+        0, $header_end_pos
+    ).decode('ascii').subst(/^(\r\n)*/, '').split(/\r\n/);
+
+    my $env = {
+        :SCRIPT_NAME('')
+    };
+
+    my Str $status_line = @header_lines.shift;
+    if $status_line ~~ m/^(<[A..Z]>+)\s(\S+)\sHTTP\/1\.(<[01]>)$/ {
+        $env<REQUEST_METHOD> = $/[0].Str;
+        $env<SERVER_PROTOCOL> = "HTTP/1.{$/[2].Str}";
+        my $path_query = $/[1].Str;
+        $env<REQUEST_URI> = $path_query;
+        if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
+            my $path = $/[0].Str;
+            my $query = ($/[1] // '').Str;
+            $env<PATH_INFO> = $path.subst(:g, /\%(<[0..9 a..f A..F]> ** 2)/, -> {
+                    :16($/[0].Str).chr
+            });
+            $env<QUERY_STRING> = $query;
         }
-        $header_end_pos++;
+    } else {
+        return -2,Nil;
     }
 
-    if ($header_end_pos < $req.bytes) {
-        my @header_lines = $req.subbuf(
-            0, $header_end_pos
-        ).decode('ascii').subst(/^(\r\n)*/, '').split(/\r\n/);
-
-        my $env = {
-            :SCRIPT_NAME('')
-        };
-
-        my Str $status_line = @header_lines.shift;
-        if $status_line ~~ m/^(<[A..Z]>+)\s(\S+)\sHTTP\/1\.(<[01]>)$/ {
-            $env<REQUEST_METHOD> = $/[0].Str;
-            $env<SERVER_PROTOCOL> = "HTTP/1.{$/[2].Str}";
-            my $path_query = $/[1].Str;
-            $env<REQUEST_URI> = $path_query;
-            if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
-                my $path = $/[0].Str;
-                my $query = ($/[1] // '').Str;
-                $env<PATH_INFO> = $path.subst(:g, /\%(<[0..9 a..f A..F]> ** 2)/, -> {
-                     :16($/[0].Str).chr
-                });
-                $env<QUERY_STRING> = $query;
+    for @header_lines {
+        if $_ ~~ m/ ^^ ( <[ A..Z a..z - ]>+ ) \s* \: \s* (.+) $$ / {
+            my ($k, $v) = @($/);
+            $k = $k.subst(/\-/, '_', :g);
+            $k = $k.uc;
+            if $k ne 'CONTENT_LENGTH' && $k ne 'CONTENT_TYPE' {
+                $k = 'HTTP_' ~ $k;
             }
+            $env{$k} = $v.Str;
         } else {
             return -2,Nil;
         }
-
-        for @header_lines {
-            if $_ ~~ m/ ^^ ( <[ A..Z a..z - ]>+ ) \s* \: \s* (.+) $$ / {
-                my ($k, $v) = @($/);
-                $k = $k.subst(/\-/, '_', :g);
-                $k = $k.uc;
-                if $k ne 'CONTENT_LENGTH' && $k ne 'CONTENT_TYPE' {
-                    $k = 'HTTP_' ~ $k;
-                }
-                $env{$k} = $v.Str;
-            } else {
-                return -2,Nil;
-            }
-        }
-
-        return $header_end_pos+4, $env;
-    } else {
-        return -1,Nil;
     }
+
+    return $header_end_pos+4, $env;
 }
+
+sub parse-http-request(Blob $req) is export {
+    my int $i = 0;
+    my int $req-bytes = $req.bytes;
+    while $i+4 <= $req-bytes {
+        if $req[$i]==0x0d && $req[$i+1]==0x0a && $req[$i+2]==0x0d && $req[$i+3]==0x0a {
+            return parse-header($req, $i);
+        }
+        $i++;
+    }
+
+    return -1,Nil;
+}
+
 
 =begin pod
 
