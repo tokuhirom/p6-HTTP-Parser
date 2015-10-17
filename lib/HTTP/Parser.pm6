@@ -2,66 +2,109 @@ use v6;
 
 unit module HTTP::Parser;
 
+grammar HTTPRequestHead {
+    token TOP {
+        (
+            <.CRLF>* # pre-header blank lines are allowed (RFC 2616 4.1)
+            <.request-line> <.CRLF>
+            [ <.header-field> <.CRLF> ]*
+            <.CRLF>
+        )
+        .* # body
+    }
+    token request-line { <method> <.SP> <request-target> <.SP> <HTTP-version> }
+    token method { <.token> }
+    token request-target { <path> [ '?' <query> ]? }
+    token path { <-[?#\ ]>* }
+    token query { <-[#\ ]>* }
+
+    token CRLF { "\x0d"? "\x0a" }
+
+    token HTTP-version {
+        "HTTP/1." <[0..1]>
+    }
+
+    # See RFC 7230 3.2.  Header Fields
+    # 3.2.6.  Field Value Components
+    token header-field { <field-name> ':' <.OWS> <field-value> <.OWS> }
+    token field-name { <.token> }
+    token field-value { [ <.field-content> || <.obs-fold> ]* }
+    token field-content { <.field-vchar> [ [ <.SP> || <.HTAB> ]+ <.field-vchar> ]? }
+    token field-vchar { <.VCHAR> || <.obs-text> }
+    token obs-text { <[\x80 .. \xFF]> }
+    token obs-fold { "\x0d"? "\x0a" [ <.SP> || <.HTAB> ]+ }
+
+    # https://tools.ietf.org/html/rfc5234#appendix-B.1
+    # visible (printing) characters
+    token VCHAR { <[\x21 .. \x7E]> }
+
+    token OWS { [ ' ' | "\t" ]* }
+
+    token SP { "\x20" }
+    token HTAB { "\x09" }
+
+    token token {
+        ["!" || "#" || '$' || "%" || "&" || "'" || "*"
+                    || "+" || "-" || "." || "^" || "_" || "`" || "|" || "~"
+                    || <[0..9]> || <[A..Z a..z]>]+ }
+}
+
+my class HTTPRequestHeadAction {
+    has %.env;
+
+    method TOP($/) {
+        $/.make: $/[0].Str.chars;
+    }
+
+    method method($/) {
+        %!env<REQUEST_METHOD> = ~$/;
+    }
+    method request-target($/) {
+        %!env<REQUEST_URI> = ~$/;
+        %!env<QUERY_STRING> //= '';
+    }
+    method path($/) {
+        my $path = (~$/).subst(/'%' (<[0..9 A..F a..f]> ** 2)/, -> $/ {chr(:16(~$/[0]))}, :global);
+        %!env<PATH_INFO> = $path;
+    }
+    method query($/) {
+        %!env<QUERY_STRING> = ~$/;
+    }
+    method HTTP-version($/) {
+        %!env<SERVER_PROTOCOL> = ~$/;
+    }
+
+    method header-field($/) {
+        %!env{$/<field-name>.made} = ~$/<field-value>;
+    }
+
+    method field-name($/) {
+        my $name = $/.Str.subst(/\-/, '_', :g).uc;
+        if $name ne 'CONTENT_LENGTH' && $name ne 'CONTENT_TYPE' {
+            $name = 'HTTP_' ~ $name;
+        }
+        $/.make: $name;
+    }
+}
+
+
 # >0: header size
 # -1: failed
 # -2: request is partial
-my sub parse-header(Blob $req, int $header_end_pos) {
-    my @header_lines = $req.subbuf(
-        0, $header_end_pos
-    ).decode('ascii').subst(/^(\r\n)*/, '').split(/\r\n/);
-
-    my $env = {
-        :SCRIPT_NAME('')
-    };
-
-    my Str $status_line = @header_lines.shift;
-    if $status_line ~~ m/^(<[A..Z]>+)\s(\S+)\sHTTP\/1\.(<[01]>)$/ {
-        $env<REQUEST_METHOD> = $/[0].Str;
-        $env<SERVER_PROTOCOL> = "HTTP/1.{$/[2].Str}";
-        my $path_query = $/[1].Str;
-        $env<REQUEST_URI> = $path_query;
-        if $path_query ~~ m/^ (.*?) [ \? (.*) ]? $/ {
-            my $path = $/[0].Str;
-            my $query = ($/[1] // '').Str;
-            $env<PATH_INFO> = $path.subst(:g, /\%(<[0..9 a..f A..F]> ** 2)/, -> {
-                    :16($/[0].Str).chr
-            });
-            $env<QUERY_STRING> = $query;
-        }
-    } else {
-        return -2,Nil;
-    }
-
-    for @header_lines {
-        if $_ ~~ m/ ^^ ( <[ A..Z a..z - ]>+ ) \s* \: \s* (.+) $$ / {
-            my ($k, $v) = @($/);
-            $k = $k.subst(/\-/, '_', :g);
-            $k = $k.uc;
-            if $k ne 'CONTENT_LENGTH' && $k ne 'CONTENT_TYPE' {
-                $k = 'HTTP_' ~ $k;
-            }
-            $env{$k} = $v.Str;
-        } else {
-            return -2,Nil;
-        }
-    }
-
-    return $header_end_pos+4, $env;
-}
-
 sub parse-http-request(Blob $req) is export {
-    my int $i = 0;
-    my int $req-bytes = $req.bytes;
-    while $i+4 <= $req-bytes {
-        if $req[$i]==0x0d && $req[$i+1]==0x0a && $req[$i+2]==0x0d && $req[$i+3]==0x0a {
-            return parse-header($req, $i);
-        }
-        $i++;
+    my $decoded = $req.decode('ascii');
+
+    my $actions = HTTPRequestHeadAction.new();
+    my $got = HTTPRequestHead.parse($decoded, :$actions);
+    if $got {
+        $actions.env<SCRIPT_NAME> = '';
+        return $got.made, $actions.env;
+    } else {
+        # pre-header blank lines are allowed (RFC 2616 4.1)
+        $decoded = $decoded.subst(/ [ \x0d? \x0a ]* /, '');
+        return $decoded ~~ /\x0d? \x0a \x0d? \x0a / ?? -1 !! -2;
     }
-
-    return -1,Nil;
 }
-
 
 =begin pod
 
@@ -83,9 +126,11 @@ HTTP::Parser is tiny http request parser library for perl6.
 
 =head1 FUNCTIONS
 
-=item C<my ($result, $env) = sub parse-http-request(Blob $req) is export>
+=item C<my ($result, $env) = sub parse-http-request(Blob[uint8] $req) is export>
 
 parse http request.
+
+C<$req> must be C<Blob[uint8]>. Not B<utf8>.
 
 Tries to parse given request string, and if successful, inserts variables into C<$env>.  For the name of the variables inserted, please refer to the PSGI specification.  The return values are:
 

@@ -14,8 +14,8 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["\r\nGET / HTTP/1.0\r\n\r\n", [ # pre-header blank lines are allowed (RFC 2616 4.1)
-        20, {
+    ["GET / HTTP/1.0\r\n\r\nhello", [
+        18, {
             :PATH_INFO("/"),
             :QUERY_STRING(""),
             :REQUEST_METHOD("GET"),
@@ -24,13 +24,12 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["GET / HTTP/1.1\r\ncontent-type: text/html\r\n\r\n", [
-        43, {
-            :CONTENT_TYPE("text/html"),
+    ["\r\nGET / HTTP/1.0\r\n\r\n", [ # pre-header blank lines are allowed (RFC 2616 4.1)
+        20, {
             :PATH_INFO("/"),
             :QUERY_STRING(""),
             :REQUEST_METHOD("GET"),
-            :SERVER_PROTOCOL("HTTP/1.1"),
+            :SERVER_PROTOCOL("HTTP/1.0"),
             :REQUEST_URI</>,
             :SCRIPT_NAME(''),
         }
@@ -56,19 +55,33 @@ my @cases =
         }
     ]],
     ["GET / HTTP/1.0\r\n", [
-        -1, Nil
+        -2, {}
     ]],
     ["GET / HTTP/1.0\r\nhogehoge\r\n\r\n", [
-        -2, Nil
+        -1, { {:PATH_INFO("/"), :QUERY_STRING(""), :REQUEST_METHOD("GET"), :REQUEST_URI("/"), :SCRIPT_NAME(""), :SERVER_PROTOCOL("HTTP/1.0")} }
     ]],
-    ["mattn\r\n\r\n", [
-        -2, Nil
+    ["GET / HTTP/1.1\r\ncontent-type: text/html\r\n\r\n", [
+        43, {
+            :CONTENT_TYPE("text/html"),
+            :PATH_INFO("/"),
+            :QUERY_STRING(""),
+            :REQUEST_METHOD("GET"),
+            :SERVER_PROTOCOL("HTTP/1.1"),
+            :REQUEST_URI</>,
+            :SCRIPT_NAME(''),
+        }
     ]],
 ;
 
 for @cases {
     my ($req, $expected) = @($_);
-    is-deeply [parse-http-request($req.encode('ascii'))], $expected, $req.subst(/\r/, '\\r', :g).subst(/\n/, '\\n', :g);
+    subtest {
+        my ($retval, $env) = parse-http-request($req.encode('ascii'));
+        is $retval, $expected[0], 'header size';
+        if $retval >= 0 {
+            is-deeply $env, $expected[1];
+        }
+    }, $req.subst(/\r/, '\\r', :g).subst(/\n/, '\\n', :g);
 }
 
 done-testing;
