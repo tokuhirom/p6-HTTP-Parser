@@ -29,7 +29,11 @@ grammar HTTPRequestHead {
     token header-field { <field-name> ':' <.OWS> <field-value> <.OWS> }
     token field-name { <.token> }
     token field-value { [ <.field-content> || <.obs-fold> ]* }
+
+    # ↓ micro optimization.
+    # token field-content { <.field-vchar>+ [ [ <.SP> || <.HTAB> ]+ <.field-vchar> ]? }
     token field-content { <.field-vchar> [ [ <.SP> || <.HTAB> ]+ <.field-vchar> ]? }
+
     token field-vchar { <.VCHAR> || <.obs-text> }
     token obs-text { <[\x80 .. \xFF]> }
     token obs-fold { "\x0d"? "\x0a" [ <.SP> || <.HTAB> ]+ }
