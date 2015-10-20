@@ -4,6 +4,17 @@ use Test;
 use HTTP::Parser;
 
 my @cases =
+    ["GET / HTTP/1.0\r\nUser-Agent: a b c\r\n\r\n", [
+        37, {
+            :PATH_INFO("/"),
+            :QUERY_STRING(""),
+            :REQUEST_METHOD("GET"),
+            :SERVER_PROTOCOL("HTTP/1.0"),
+            :REQUEST_URI</>,
+            :HTTP_USER_AGENT('a b c'),
+            :SCRIPT_NAME(''),
+        }
+    ]],
     ["GET / HTTP/1.0\r\n\r\n", [
         18, {
             :PATH_INFO("/"),
@@ -82,6 +93,7 @@ for @cases {
             is-deeply $env, $expected[1];
         }
     }, $req.subst(/\r/, '\\r', :g).subst(/\n/, '\\n', :g);
+    last;
 }
 
 done-testing;

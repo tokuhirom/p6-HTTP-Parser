@@ -28,14 +28,10 @@ grammar HTTPRequestHead {
     # 3.2.6.  Field Value Components
     token header-field { <field-name> ':' <.OWS> <field-value> <.OWS> }
     token field-name { <.token> }
-    token field-value { [ <.field-content> || <.obs-fold> ]* }
+    token field-value { <field-content> [ <.obs-fold> <field-content> ]* }
 
-    # ↓ micro optimization.
-    # token field-content { <.field-vchar>+ [ [ <.SP> || <.HTAB> ]+ <.field-vchar> ]? }
-    token field-content { <.field-vchar> [ [ <.SP> || <.HTAB> ]+ <.field-vchar> ]? }
+    token field-content { \N* }
 
-    token field-vchar { <.VCHAR> || <.obs-text> }
-    token obs-text { <[\x80 .. \xFF]> }
     token obs-fold { "\x0d"? "\x0a" [ <.SP> || <.HTAB> ]+ }
 
     # https://tools.ietf.org/html/rfc5234#appendix-B.1
@@ -81,6 +77,12 @@ my class HTTPRequestHeadAction {
     method header-field($/) {
         %!env{$/<field-name>.made} = ~$/<field-value>;
     }
+
+    method field-value($/) {
+        $/.make: $/<field-content>».made.join("");
+    }
+
+    method field-content($/) { $/.make: ~$/ }
 
     method field-name($/) {
         my $name = $/.Str.subst(/\-/, '_', :g).uc;
