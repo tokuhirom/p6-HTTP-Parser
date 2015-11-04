@@ -22,9 +22,11 @@ HTTP::Parser is tiny http request parser library for perl6.
 FUNCTIONS
 =========
 
-  * `my ($result, $env) = sub parse-http-request(Blob $req) is export`
+  * `my ($result, $env) = sub parse-http-request(Blob[uint8] $req) is export`
 
 parse http request.
+
+`$req` must be `Blob[uint8]`. Not **utf8**.
 
 Tries to parse given request string, and if successful, inserts variables into `$env`. For the name of the variables inserted, please refer to the PSGI specification. The return values are:
 
