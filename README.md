@@ -10,7 +10,7 @@ SYNOPSIS
 
     use HTTP::Parser;
 
-    my ($result, $env) = parse-http-request("GET / HTTP/1.0\r\ncontent-type: text/html\r\n\r\n".encode("ascii"));
+    my ($result, $env) = parse-http-request("GET / HTTP/1.0\x0d\x0acontent-type: text/html\x0d\x0a\x0d\x0a".encode("ascii"));
     # $result => 43
     # $env => ${:CONTENT_TYPE("text/html"), :PATH_INFO("/"), :QUERY_STRING(""), :REQUEST_METHOD("GET")}
 
