@@ -4,7 +4,7 @@ use Test;
 use HTTP::Parser;
 
 my @cases =
-    ["GET / HTTP/1.0\x0d\0aUser-Agent: a b c\x0d\0a\x0d\0a", [
+    ["GET / HTTP/1.0\x[0d]\x[0a]User-Agent: a b c\x[0d]\x[0a]\x[0d]\x[0a]", [
         37, {
             :PATH_INFO("/"),
             :QUERY_STRING(""),
@@ -15,7 +15,7 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["GET / HTTP/1.0\x0d\0a\x0d\0a", [
+    ["GET / HTTP/1.0\x[0d]\x[0a]\x[0d]\x[0a]", [
         18, {
             :PATH_INFO("/"),
             :QUERY_STRING(""),
@@ -25,7 +25,7 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["GET / HTTP/1.0\x0d\0a\x0d\0ahello", [
+    ["GET / HTTP/1.0\x[0d]\x[0a]\x[0d]\x[0a]hello", [
         18, {
             :PATH_INFO("/"),
             :QUERY_STRING(""),
@@ -35,7 +35,7 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["\x0d\0aGET / HTTP/1.0\x0d\0a\x0d\0a", [ # pre-header blank lines are allowed (RFC 2616 4.1)
+    ["\x[0d]\x[0a]GET / HTTP/1.0\x[0d]\x[0a]\x[0d]\x[0a]", [ # pre-header blank lines are allowed (RFC 2616 4.1)
         20, {
             :PATH_INFO("/"),
             :QUERY_STRING(""),
@@ -45,7 +45,7 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["GET /foo?bar=3 HTTP/1.1\x0d\0a\x0d\0a", [
+    ["GET /foo?bar=3 HTTP/1.1\x[0d]\x[0a]\x[0d]\x[0a]", [
         27, {
             :PATH_INFO("/foo"),
             :QUERY_STRING("bar=3"),
@@ -55,7 +55,7 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["GET /foo%2A%2c?bar=3 HTTP/1.1\x0d\0a\x0d\0a", [
+    ["GET /foo%2A%2c?bar=3 HTTP/1.1\x[0d]\x[0a]\x[0d]\x[0a]", [
         33, {
             REQUEST_METHOD => 'GET',
             PATH_INFO => '/foo*,',
@@ -65,13 +65,13 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
-    ["GET / HTTP/1.0\x0d\0a", [
+    ["GET / HTTP/1.0\x[0d]\x[0a]", [
         -2, {}
     ]],
-    ["GET / HTTP/1.0\x0d\0ahogehoge\x0d\0a\x0d\0a", [
+    ["GET / HTTP/1.0\x[0d]\x[0a]hogehoge\x[0d]\x[0a]\x[0d]\x[0a]", [
         -1, { {:PATH_INFO("/"), :QUERY_STRING(""), :REQUEST_METHOD("GET"), :REQUEST_URI("/"), :SCRIPT_NAME(""), :SERVER_PROTOCOL("HTTP/1.0")} }
     ]],
-    ["GET / HTTP/1.1\x0d\0acontent-type: text/html\x0d\0a\x0d\0a", [
+    ["GET / HTTP/1.1\x[0d]\x[0a]content-type: text/html\x[0d]\x[0a]\x[0d]\x[0a]", [
         43, {
             :CONTENT_TYPE("text/html"),
             :PATH_INFO("/"),
@@ -93,7 +93,6 @@ for @cases {
             is-deeply $env, $expected[1];
         }
     }, $req.subst(/\r/, '\\r', :g).subst(/\n/, '\\n', :g);
-    last;
 }
 
 done-testing;
