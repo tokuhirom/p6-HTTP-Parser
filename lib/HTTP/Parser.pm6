@@ -98,7 +98,7 @@ my class HTTPRequestHeadAction {
 # -1: failed
 # -2: request is partial
 sub parse-http-request(Blob $req is copy) is export {
-    my $k = $req.first(* > 127, :k);
+    my $k := $req.first(* > 127, :k);
     if $k !~~ Nil {
         $req = $req.subbuf(0, $k);
     }
