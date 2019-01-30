@@ -82,12 +82,23 @@ my @cases =
             :SCRIPT_NAME(''),
         }
     ]],
+    ["GET / HTTP/1.1\x[0d]\x[0a]content-type: text/html\x[0d]\x[0a]\x[0d]\x[0a]öØh", [
+        43, {
+            :CONTENT_TYPE("text/html"),
+            :PATH_INFO("/"),
+            :QUERY_STRING(""),
+            :REQUEST_METHOD("GET"),
+            :SERVER_PROTOCOL("HTTP/1.1"),
+            :REQUEST_URI</>,
+            :SCRIPT_NAME(''),
+        }
+    ]],
 ;
 
 for @cases {
     my ($req, $expected) = @($_);
     subtest {
-        my ($retval, $env) = parse-http-request($req.encode('ascii'));
+        my ($retval, $env) = parse-http-request($req.encode);
         is $retval, $expected[0], 'header size';
         if $retval >= 0 {
             is-deeply $env, $expected[1];
