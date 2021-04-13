@@ -9,7 +9,7 @@
   "depends" : [ ],
   "description" : "HTTP parser.",
   "test-depends" : [ ],
-  "version" : "*",
+  "version" : "0.0.2",
   "authors" : [
     "Tokuhiro Matsuno"
   ]
