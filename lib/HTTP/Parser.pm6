@@ -99,7 +99,7 @@ my class HTTPRequestHeadAction {
 # -2: request is partial
 sub parse-http-request(Blob $req is copy) is export {
     my $k := $req.first(* > 127, :k);
-    if $k !~~ Nil {
+    if $k.defined {
         $req = $req.subbuf(0, $k);
     }
     my $decoded = $req.decode('ascii');
